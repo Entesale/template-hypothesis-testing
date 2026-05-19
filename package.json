@@ -1,0 +1,7 @@
+{
+    "name": "@entesale/template-hypothesis-testing",
+    "type": "module",
+    "dependencies": {
+        "opencode-ai": "1.14.25"
+    }
+}
