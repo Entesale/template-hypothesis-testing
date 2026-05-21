@@ -21135,6 +21135,24 @@ var createAgentSchema = external_exports.object(createAgentShape);
 async function postCreateAgent(input) {
   return postJson("/agent/create", input);
 }
+var paywallShape = {
+  company_summary: external_exports.string().min(1).max(200).describe(
+    'One-sentence pitch about the company \u2014 what they sell and to whom. Max 200 chars. Example: "Acme Inc. generates leads from public sourcing across LinkedIn, TikTok and Instagram."'
+  ),
+  icp_summary: external_exports.string().min(1).max(200).describe(
+    'One-sentence ICP description \u2014 who the campaign targets. Max 200 chars. Example: "B2B SaaS founders ($1-10M ARR) who already publish thought-leadership on LinkedIn."'
+  ),
+  campaign_summary: external_exports.string().min(1).max(400).describe(
+    'Short multi-step description of the GTM motion this campaign will run. Use ` -> ` between steps. Max 400 chars. Example: "Monitor business influencer content -> Collect commenters expressing pain -> Like & follow their accounts -> Wait for follow-back to DM".'
+  ),
+  recommended_plan: external_exports.enum(["solo", "pro", "scale"]).default("pro").describe(
+    "Which plan you recommend for this operator. solo = 1 campaign, pro = 3 campaigns (recommended for most), scale = 10 campaigns. The recommended plan is visually highlighted in the operator's UI."
+  )
+};
+var paywallSchema = external_exports.object(paywallShape);
+async function postPaywall(input) {
+  return postJson("/paywall/show", input);
+}
 async function main() {
   const server = new McpServer({ name: "entesale-mcp", version: "0.1.0" });
   server.registerTool(
@@ -21194,6 +21212,32 @@ async function main() {
     async (args) => {
       const input = createAgentSchema.parse(args);
       const result = await postCreateAgent(input);
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(result, null, 2) }
+        ]
+      };
+    }
+  );
+  server.registerTool(
+    "paywall",
+    {
+      description: [
+        "Show the operator a polished plan-selection card with three tiers (1, 3, 10 simultaneous campaigns) so they can subscribe and let you kick off the first campaign.",
+        "",
+        "WHEN to call: only after you have (a) saved company knowledge via `entesale_update_company_details`, (b) refined your own role/system prompt via `entesale_update_agent_details`, and (c) shaped a concrete campaign plan with the operator. This is the moment of conversion \u2014 don't show it prematurely.",
+        "",
+        "Inputs are the pitch the operator will read inside the card. Keep them short and crisp; they're rendered as visual chips, not paragraphs.",
+        "",
+        "AFTER calling: keep the conversation going naturally \u2014 answer questions, refine the pitch, address objections. Do NOT block. On successful payment, Entesale will inject a confirmation message into this chat (just like a channel webhook) and you can pick up from there to launch the first campaign.",
+        "",
+        "If the operator is already on a paid plan, the tool returns { already_paid: true, plan } \u2014 don't re-show the paywall; proceed to channel setup."
+      ].join("\n"),
+      inputSchema: paywallShape
+    },
+    async (args) => {
+      const input = paywallSchema.parse(args);
+      const result = await postPaywall(input);
       return {
         content: [
           { type: "text", text: JSON.stringify(result, null, 2) }
