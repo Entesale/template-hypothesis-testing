@@ -6800,7 +6800,7 @@ var require_dist = __commonJS({
 });
 
 // src/index.ts
-var import_node_process2 = __toESM(require("process"), 1);
+var import_node_process3 = __toESM(require("process"), 1);
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 var import_node_process = __toESM(require("process"), 1);
@@ -16967,6 +16967,10 @@ var NEVER2 = INVALID;
 // src/env.ts
 var proxySchema = external_exports.object({
   CHANNELS_PROXY_URL: external_exports.string().url("CHANNELS_PROXY_URL must be a valid URL"),
+  // Entesale backend URL — used by `connect` to register a pending channel
+  // connection. Optional in proxy mode so older sandboxes without the env
+  // can still load all other tools; `connect` returns an error if it's missing.
+  ENTESALE_MCP_URL: external_exports.string().url("ENTESALE_MCP_URL must be a valid URL").optional(),
   ENTESALE_AGENT_TOKEN: external_exports.string().min(1, "ENTESALE_AGENT_TOKEN is required in proxy mode"),
   CHANNELS_ACCOUNT_IDS: external_exports.string().min(1, "CHANNELS_ACCOUNT_IDS is required")
 });
@@ -21489,6 +21493,61 @@ async function handleSyncAccount(bridge, input) {
   return bridge.syncAccount(syncAccountSchema.parse(input).account_id);
 }
 
+// src/tools/account/connect.ts
+var import_node_process2 = __toESM(require("process"), 1);
+var connectChannelToolShape = {
+  provider: external_exports.enum([
+    "linkedin",
+    "twitter",
+    "telegram",
+    "whatsapp",
+    "instagram",
+    "gmail",
+    "messenger"
+  ]).describe(
+    "Which channel to ask the operator to connect. Renders a connection widget in the chat for that provider. `gmail` covers Google Mail (Unipile GOOGLE), `messenger` covers Facebook Messenger."
+  ),
+  reason: external_exports.string().min(1).max(140).optional().describe(
+    'Optional one-line reason shown to the operator (e.g. "so I can start engaging your LinkedIn audience"). Max 140 chars.'
+  )
+};
+var connectChannelSchema = external_exports.object(connectChannelToolShape);
+async function handleConnectChannel(_bridge, args) {
+  const input = connectChannelSchema.parse(args);
+  const base = import_node_process2.default.env.ENTESALE_MCP_URL;
+  const token = import_node_process2.default.env.ENTESALE_AGENT_TOKEN;
+  if (!base) {
+    throw new Error(
+      "ENTESALE_MCP_URL not set \u2014 connect tool requires the Entesale backend URL."
+    );
+  }
+  if (!token) {
+    throw new Error(
+      "ENTESALE_AGENT_TOKEN not set \u2014 connect tool requires the agent bearer token."
+    );
+  }
+  const res = await fetch(`${base.replace(/\/$/, "")}/channels/connect`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      provider: input.provider,
+      reason: input.reason
+    })
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`/channels/connect ${res.status}: ${text}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 // src/tools/messaging/list-chats.ts
 var ISO_8601_UTC_PATTERN = /^[1-2]\d{3}-[0-1]\d-[0-3]\dT\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 var listChatsToolShape = {
@@ -22045,6 +22104,22 @@ var toolDefinitions = [
     handle: handleSyncAccount
   },
   {
+    name: "connect",
+    description: [
+      "Ask the operator to connect a new channel account (LinkedIn / Twitter (X) / Telegram / WhatsApp).",
+      "",
+      "WHEN to call: when you need to send or read messages on a provider that the operator hasn't connected yet. The operator sees a polished connect card; clicking 'Connect' opens the provider's hosted-auth flow in a dialog.",
+      "",
+      "INPUT: `provider` is one of `linkedin | twitter | telegram | whatsapp`. Optionally pass `reason` (\u2264140 chars) to explain why you need the channel.",
+      "",
+      'AFTER calling: keep the conversation going naturally; do NOT block. When the operator finishes the connect flow, Entesale injects a synthetic message into this chat ("Channel connected: <provider>\u2026") and you can resume.',
+      "",
+      "If the operator already has that provider connected, the tool returns `{ already_connected: true, account_id, profile_name }` \u2014 don't re-show the card; reuse the existing account."
+    ].join("\n"),
+    shape: connectChannelToolShape,
+    handle: handleConnectChannel
+  },
+  {
     name: "list_chats",
     description: "List chats across connected accounts. Supports filtering by account_id (single or comma-separated), account_type (provider), unread status, and creation time window (before/after, ISO 8601 UTC). Cursor-paginated.",
     shape: listChatsToolShape,
@@ -22295,23 +22370,23 @@ function createChannelsMcpServer(bridge) {
 
 // src/index.ts
 async function main() {
-  const env = parseChannelsMcpEnv(import_node_process2.default.env);
+  const env = parseChannelsMcpEnv(import_node_process3.default.env);
   const accountIds = parseAccountIds(env.CHANNELS_ACCOUNT_IDS);
   const bridge = env.mode === "proxy" ? createProxyBridge(env.CHANNELS_PROXY_URL, env.ENTESALE_AGENT_TOKEN, accountIds) : createHttpBridge(env.UNIPILE_BASE_URL, env.UNIPILE_API_KEY, accountIds);
   const server = createChannelsMcpServer(bridge);
   const transport = new StdioServerTransport();
-  import_node_process2.default.once("SIGINT", () => {
-    void server.close().finally(() => import_node_process2.default.exit(0));
+  import_node_process3.default.once("SIGINT", () => {
+    void server.close().finally(() => import_node_process3.default.exit(0));
   });
-  import_node_process2.default.once("SIGTERM", () => {
-    void server.close().finally(() => import_node_process2.default.exit(0));
+  import_node_process3.default.once("SIGTERM", () => {
+    void server.close().finally(() => import_node_process3.default.exit(0));
   });
   await server.connect(transport);
 }
 void main().catch((error2) => {
   const message = error2 instanceof Error ? error2.message : "Channels MCP failed to start";
-  import_node_process2.default.stderr.write(`${message}
+  import_node_process3.default.stderr.write(`${message}
 `);
-  import_node_process2.default.exit(1);
+  import_node_process3.default.exit(1);
 });
 //# sourceMappingURL=index.cjs.map
