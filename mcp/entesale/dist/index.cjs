@@ -21137,16 +21137,16 @@ async function postCreateAgent(input) {
 }
 var paywallShape = {
   company_name: external_exports.string().describe("Company name without domain zones or types of incorporation. Example: Acme Inc is simply Acme."),
-  company_summary: external_exports.string().min(1).max(80).describe(
+  company_summary: external_exports.string().min(1).max(120).describe(
     'One-sentence pitch about the company \u2014 what they sell and to whom. Max 80 chars. Example: "Generates leads from public sourcing across LinkedIn, TikTok and Instagram."'
   ),
-  icp_summary: external_exports.string().min(1).max(200).describe(
+  icp_summary: external_exports.string().min(1).max(220).describe(
     'One-sentence ICP description \u2014 who the campaign targets. Max 200 chars. Example: "B2B SaaS founders ($1-10M ARR) who already publish thought-leadership on LinkedIn."'
   ),
-  campaign_summary: external_exports.string().min(1).max(50).describe(
+  campaign_summary: external_exports.string().min(1).max(80).describe(
     `Headline-style tagline for the campaign \u2014 what it does in one phrase. Max 50 chars (renders as the hero line in the operator's card). Example: "Converting high-intent leads from linkedin pain posts".`
   ),
-  campaign_steps: external_exports.array(external_exports.string().min(1).max(60)).min(3).max(5).describe(
+  campaign_steps: external_exports.array(external_exports.string().min(1).max(80)).min(3).max(5).describe(
     'Ordered steps the campaign runs, 3\u20135 entries, each \u226460 chars. Rendered as a chip flow under the tagline. Each entry is one step \u2014 do not include arrow separators or numbering. Example: ["Monitor business influencer content", "Collect commenters expressing pain", "Like & follow their accounts", "Wait for follow-back to DM"].'
   ),
   recommended_plan: external_exports.enum(["solo", "pro", "scale"]).default("pro").describe(

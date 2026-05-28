@@ -17120,6 +17120,14 @@ function createHttpBridge(baseUrl, apiKey, accountIds) {
         { account_id, limit }
       );
     },
+    async getUserComments(identifier, account_id, limit = 20, cursor) {
+      return req(
+        "GET",
+        `/api/v1/users/${encodeURIComponent(identifier)}/comments`,
+        void 0,
+        { account_id, limit, cursor }
+      );
+    },
     // ── Network ──────────────────────────────────────────────────────────
     async listRelations(account_id, limit = 50, cursor) {
       return req("GET", "/api/v1/users/relations", void 0, {
@@ -17342,6 +17350,14 @@ function createProxyBridge(proxyBaseUrl, agentToken, accountIds) {
         `/api/v1/users/${encodeURIComponent(identifier)}/posts`,
         void 0,
         { account_id, limit }
+      );
+    },
+    async getUserComments(identifier, account_id, limit = 20, cursor) {
+      return req(
+        "GET",
+        `/api/v1/users/${encodeURIComponent(identifier)}/comments`,
+        void 0,
+        { account_id, limit, cursor }
       );
     },
     async listRelations(account_id, limit = 50, cursor) {
@@ -21798,6 +21814,19 @@ async function handleGetUserPosts(bridge, input) {
   return bridge.getUserPosts(identifier, account_id, limit);
 }
 
+// src/tools/profile/get-user-comments.ts
+var getUserCommentsToolShape = {
+  identifier: external_exports.string().min(1).describe("Provider-native identifier of the user whose comments to retrieve."),
+  account_id: external_exports.string().optional().describe("Unipile account ID (required for LinkedIn)."),
+  limit: external_exports.number().int().min(1).max(100).optional().default(20).describe("Max comments to return (default 20)."),
+  cursor: external_exports.string().min(1).optional().describe("Pagination cursor from a previous response.")
+};
+var getUserCommentsSchema = external_exports.object(getUserCommentsToolShape);
+async function handleGetUserComments(bridge, input) {
+  const { identifier, account_id, limit, cursor } = getUserCommentsSchema.parse(input);
+  return bridge.getUserComments(identifier, account_id, limit, cursor);
+}
+
 // src/tools/network/list-relations.ts
 var listRelationsToolShape = {
   account_id: external_exports.string().min(1).describe("Unipile account ID (LinkedIn)."),
@@ -22214,6 +22243,12 @@ var toolDefinitions = [
     description: "Retrieve posts published by a user on their profile.",
     shape: getUserPostsToolShape,
     handle: handleGetUserPosts
+  },
+  {
+    name: "get_user_comments",
+    description: "Retrieve comments written by a user. Supports cursor pagination.",
+    shape: getUserCommentsToolShape,
+    handle: handleGetUserComments
   },
   {
     name: "list_relations",
